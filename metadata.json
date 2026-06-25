@@ -1,0 +1,6 @@
+{
+  "name": "NextMove",
+  "description": "AI-powered task completion manager that breaks down tasks, predicts risk, and creates personalized actionable plans to meet your deadlines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -958,7 +958,7 @@ export default function App() {
 
             <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
               <div>
-                <p className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-widest mb-1">AI Planning Hours Saved</p>
+                <p className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-widest mb-1">Estimated Planning Time Saved</p>
                 <span className="text-3xl font-black tracking-tight text-indigo-400 underline decoration-indigo-800 underline-offset-4">
                   {timeSavedHours}h
                 </span>

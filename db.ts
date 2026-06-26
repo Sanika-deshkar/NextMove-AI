@@ -95,9 +95,10 @@ const taskSchema = new mongoose.Schema({
   timestamps: true,
   toJSON: {
     transform: (doc, ret) => {
-      delete ret._id;
-      delete ret.__v;
-      return ret;
+      const anyRet = ret as any;
+      delete anyRet._id;
+      delete anyRet.__v;
+      return anyRet;
     }
   }
 });
@@ -112,9 +113,10 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
   toJSON: {
     transform: (doc, ret) => {
-      delete ret._id;
-      delete ret.__v;
-      return ret;
+      const anyRet = ret as any;
+      delete anyRet._id;
+      delete anyRet.__v;
+      return anyRet;
     }
   }
 });

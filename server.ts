@@ -14,6 +14,8 @@ dotenv.config();
 
 let useMongo = false;
 
+const resetCodes = new Map<string, { code: string; expires: number }>();
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, 'data', 'tasks.json');
 const USERS_PATH = path.join(__dirname, 'data', 'users.json');
@@ -199,6 +201,46 @@ async function startServer() {
       res.json({
         user: { id: user.id, email: user.email, name: user.name },
         token: user.id
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Auth API: Direct Reset Password without OTP
+  app.post('/api/auth/reset-password', async (req, res) => {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email and new password are required.' });
+    }
+
+    try {
+      const passwordHash = hashPassword(newPassword);
+
+      if (useMongo) {
+        let user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+          const id = 'user_' + Math.random().toString(36).substring(2, 11);
+          user = new User({ id, email: email.toLowerCase(), passwordHash, name: email.split('@')[0] });
+        } else {
+          user.passwordHash = passwordHash;
+        }
+        await user.save();
+      } else {
+        const users = await readUsers();
+        const userIdx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+        if (userIdx === -1) {
+          const id = 'user_' + Math.random().toString(36).substring(2, 11);
+          users.push({ id, email: email.toLowerCase(), passwordHash, name: email.split('@')[0] });
+        } else {
+          users[userIdx].passwordHash = passwordHash;
+        }
+        await writeUsers(users);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Your password has been successfully updated!'
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

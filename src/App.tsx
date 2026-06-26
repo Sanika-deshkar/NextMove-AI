@@ -29,7 +29,10 @@ import {
   Lock,
   Mail,
   User,
-  ShieldCheck
+  ShieldCheck,
+  KeyRound,
+  Send,
+  ShieldAlert
 } from 'lucide-react';
 
 // Task and Subtask Interfaces
@@ -85,11 +88,19 @@ export default function App() {
       return null;
     }
   });
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
 
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState<'plan' | 'tasks' | 'metrics' | 'insights'>('plan');
@@ -202,6 +213,46 @@ export default function App() {
       showToast(`Welcome back, ${data.user.name}!`, 'success');
       setAuthEmail('');
       setAuthPassword('');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim() || !forgotNewPassword.trim() || !forgotConfirmPassword.trim()) {
+      showToast('All fields are required.', 'error');
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      showToast('Passwords do not match.', 'error');
+      return;
+    }
+    if (forgotNewPassword.length < 6) {
+      showToast('Password must be at least 6 characters long.', 'error');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotEmail,
+          newPassword: forgotNewPassword
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Password reset failed.');
+
+      showToast('Password updated successfully! You can now log in.', 'success');
+      setAuthMode('login');
+      // Reset states
+      setForgotEmail('');
+      setForgotNewPassword('');
+      setForgotConfirmPassword('');
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -486,7 +537,21 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-black text-indigo-400 uppercase tracking-wider block">Password</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-black text-indigo-400 uppercase tracking-wider block">Password</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('forgot');
+                      setForgotEmail(authEmail);
+                      setSimulatedOtp(null);
+                      setForgotStep(1);
+                    }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline transition-all font-bold cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <input
@@ -532,7 +597,7 @@ export default function App() {
                 </p>
               </div>
             </form>
-          ) : (
+          ) : authMode === 'signup' ? (
             <form onSubmit={handleSignup} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-black text-indigo-400 uppercase tracking-wider block">Your Name</label>
@@ -611,6 +676,94 @@ export default function App() {
                 </p>
               </div>
             </form>
+          ) : (
+            <div className="space-y-6">
+              <div className="border-b border-slate-800/80 pb-4 mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-indigo-400" />
+                  <span>Direct Password Reset</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Specify an email address (any registered or new dummy email) and your new password. It will be updated instantly.
+                </p>
+              </div>
+
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-indigo-400 uppercase tracking-wider block">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-indigo-400 uppercase tracking-wider block">New Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-indigo-400 uppercase tracking-wider block">Confirm New Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold text-sm py-3.5 px-4 rounded-xl transition-all shadow-md shadow-indigo-950/50 hover:shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {authLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      <span>Update Password Directly</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="text-center pt-4 border-t border-slate-800/80 mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                  }}
+                  className="text-xs text-slate-400 hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1 font-bold mx-auto"
+                >
+                  <span>← Back to Sign In</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

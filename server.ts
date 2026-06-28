@@ -5,12 +5,13 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+
+// Load environment variables immediately before any other imports
+dotenv.config();
+
 import crypto from 'crypto';
 import mongoose from 'mongoose';
-import { connectDB, User, Task } from './db.ts';
-
-// Load environment variables
-dotenv.config();
+import { connectDB, User, Task, MONGODB_URI } from './db.ts';
 
 let useMongo = false;
 
@@ -105,8 +106,8 @@ function hasTaskAccess(task: any, userId: string): boolean {
 async function startServer() {
   // Connect to MongoDB
   await connectDB();
-  useMongo = !!process.env.MONGODB_URI && mongoose.connection.readyState === 1;
-  if (!!process.env.MONGODB_URI && !useMongo) {
+  useMongo = !!MONGODB_URI && mongoose.connection.readyState === 1;
+  if (!!MONGODB_URI && !useMongo) {
     console.warn('⚠️ MongoDB URI was provided but connection failed. Falling back to local JSON file storage.');
   } else if (useMongo) {
     console.log('🚀 MongoDB is fully active and being used for persistent storage.');
@@ -117,23 +118,40 @@ async function startServer() {
 
   // Auth API: Sign up
   app.post('/api/auth/signup', async (req, res) => {
-    const { email, password, name } = req.body;
+    let { email, password, name } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required.' });
     }
 
+    email = email.trim().toLowerCase();
+    password = password.trim();
+    name = name.trim();
+
+    console.log(`[Signup Attempt] Registering user: ${email}`);
+
     try {
       if (useMongo) {
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
+        const existingUser = await User.findOne({ email });
+        let localUserExists = false;
+        try {
+          const localUsers = await readUsers();
+          localUserExists = localUsers.some(u => u.email.toLowerCase() === email);
+        } catch (e) {}
+
+        if (existingUser || localUserExists) {
+          console.warn(`[Signup Attempt] Registration failed: email ${email} already exists.`);
           return res.status(400).json({ error: 'A user with this email already exists.' });
         }
 
         const id = 'user_' + Math.random().toString(36).substring(2, 11);
         const passwordHash = hashPassword(password);
         
-        const newUser = new User({ id, email: email.toLowerCase(), passwordHash, name });
+        console.log(`[Signup Attempt] Generated hash for ${email}: ${passwordHash}`);
+
+        const newUser = new User({ id, email, passwordHash, name });
         await newUser.save();
+
+        console.log(`[Signup Attempt] User ${email} registered successfully in MongoDB.`);
 
         return res.status(201).json({
           user: { id, email: newUser.email, name },
@@ -142,14 +160,14 @@ async function startServer() {
       }
 
       const users = await readUsers();
-      if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+      if (users.find(u => u.email.toLowerCase() === email)) {
         return res.status(400).json({ error: 'A user with this email already exists.' });
       }
 
       const id = 'user_' + Math.random().toString(36).substring(2, 11);
       const passwordHash = hashPassword(password);
       
-      const newUser = { id, email: email.toLowerCase(), passwordHash, name };
+      const newUser = { id, email, passwordHash, name };
       users.push(newUser);
       await writeUsers(users);
 
@@ -158,29 +176,69 @@ async function startServer() {
         token: id
       });
     } catch (error: any) {
+      console.error(`[Signup Attempt] Error:`, error);
       res.status(500).json({ error: error.message });
     }
   });
 
   // Auth API: Log in
   app.post('/api/auth/login', async (req, res) => {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
+    email = email.trim().toLowerCase();
+    password = password.trim();
+
+    console.log(`[Login Attempt] Login request for: ${email}`);
+
     try {
       if (useMongo) {
-        const user = await User.findOne({ email: email.toLowerCase() });
+        let user = await User.findOne({ email });
+        console.log(`[Login Attempt] User found in MongoDB for ${email}: ${!!user}`);
+        
+        // Auto-migration: If user exists in local JSON storage but not in MongoDB
         if (!user) {
-          return res.status(401).json({ error: 'Invalid email or password.' });
+          try {
+            const localUsers = await readUsers();
+            const localUser = localUsers.find(u => u.email.toLowerCase() === email);
+            if (localUser) {
+              const passwordHash = hashPassword(password);
+              if (localUser.passwordHash === passwordHash) {
+                // Password matches, let's migrate user to MongoDB
+                user = new User({
+                  id: localUser.id,
+                  email: localUser.email.toLowerCase(),
+                  passwordHash: localUser.passwordHash,
+                  name: localUser.name
+                });
+                await user.save();
+                console.log(`[Migration] Successfully migrated user "${email}" from local JSON storage to MongoDB.`);
+              } else {
+                console.warn(`[Login Attempt] Password mismatch during auto-migration search for: ${email}`);
+                return res.status(401).json({ error: 'Invalid email or password.' });
+              }
+            } else {
+              console.warn(`[Login Attempt] No such user found in MongoDB or JSON local fallback for: ${email}`);
+              return res.status(401).json({ error: 'Invalid email or password.' });
+            }
+          } catch (e) {
+            console.error(`[Login Attempt] Migration fallback error:`, e);
+            return res.status(401).json({ error: 'Invalid email or password.' });
+          }
+        } else {
+          const passwordHash = hashPassword(password);
+          console.log(`[Login Attempt] Comparing hashes for ${email}:`);
+          console.log(`  - Provided hash: ${passwordHash}`);
+          console.log(`  - Stored hash  : ${user.passwordHash}`);
+          if (user.passwordHash !== passwordHash) {
+            console.warn(`[Login Attempt] Password hash mismatch for user: ${email}`);
+            return res.status(401).json({ error: 'Invalid email or password.' });
+          }
         }
 
-        const passwordHash = hashPassword(password);
-        if (user.passwordHash !== passwordHash) {
-          return res.status(401).json({ error: 'Invalid email or password.' });
-        }
-
+        console.log(`[Login Attempt] User ${email} authenticated successfully in MongoDB.`);
         return res.json({
           user: { id: user.id, email: user.email, name: user.name },
           token: user.id
@@ -188,16 +246,19 @@ async function startServer() {
       }
 
       const users = await readUsers();
-      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const user = users.find(u => u.email.toLowerCase() === email);
       if (!user) {
+        console.warn(`[Login Attempt] No such user in JSON storage for: ${email}`);
         return res.status(401).json({ error: 'Invalid email or password.' });
       }
 
       const passwordHash = hashPassword(password);
       if (user.passwordHash !== passwordHash) {
+        console.warn(`[Login Attempt] Password hash mismatch in JSON storage for: ${email}`);
         return res.status(401).json({ error: 'Invalid email or password.' });
       }
 
+      console.log(`[Login Attempt] User ${email} authenticated successfully in JSON storage.`);
       res.json({
         user: { id: user.id, email: user.email, name: user.name },
         token: user.id
@@ -209,33 +270,45 @@ async function startServer() {
 
   // Auth API: Direct Reset Password without OTP
   app.post('/api/auth/reset-password', async (req, res) => {
-    const { email, newPassword } = req.body;
+    let { email, newPassword } = req.body;
     if (!email || !newPassword) {
       return res.status(400).json({ error: 'Email and new password are required.' });
     }
 
+    email = email.trim().toLowerCase();
+    newPassword = newPassword.trim();
+
+    console.log(`[Password Reset Attempt] Resetting password for: ${email}`);
+
     try {
       const passwordHash = hashPassword(newPassword);
+      console.log(`[Password Reset Attempt] New password hash generated: ${passwordHash}`);
 
       if (useMongo) {
-        let user = await User.findOne({ email: email.toLowerCase() });
+        let user = await User.findOne({ email });
         if (!user) {
+          console.log(`[Password Reset Attempt] No existing user found in MongoDB. Creating a new user: ${email}`);
           const id = 'user_' + Math.random().toString(36).substring(2, 11);
-          user = new User({ id, email: email.toLowerCase(), passwordHash, name: email.split('@')[0] });
+          user = new User({ id, email, passwordHash, name: email.split('@')[0] });
         } else {
+          console.log(`[Password Reset Attempt] Found user in MongoDB. Updating passwordHash.`);
           user.passwordHash = passwordHash;
         }
         await user.save();
+        console.log(`[Password Reset Attempt] User saved successfully in MongoDB.`);
       } else {
         const users = await readUsers();
-        const userIdx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+        const userIdx = users.findIndex(u => u.email.toLowerCase() === email);
         if (userIdx === -1) {
+          console.log(`[Password Reset Attempt] No existing user found in JSON. Creating a new user: ${email}`);
           const id = 'user_' + Math.random().toString(36).substring(2, 11);
-          users.push({ id, email: email.toLowerCase(), passwordHash, name: email.split('@')[0] });
+          users.push({ id, email, passwordHash, name: email.split('@')[0] });
         } else {
+          console.log(`[Password Reset Attempt] Found user in JSON. Updating passwordHash.`);
           users[userIdx].passwordHash = passwordHash;
         }
         await writeUsers(users);
+        console.log(`[Password Reset Attempt] Users saved successfully in JSON storage.`);
       }
 
       return res.json({

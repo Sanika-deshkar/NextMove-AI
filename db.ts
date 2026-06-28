@@ -2,6 +2,13 @@ import mongoose from 'mongoose';
 
 function sanitizeURI(uri: string): string {
   let cleaned = uri.trim();
+  
+  // Handle case where user copy-pasted the key-value pair, e.g. "MONGODB_URI = mongodb+srv://..." or "export MONGODB_URI = ..."
+  const prefixMatch = cleaned.match(/^(?:export\s+)?(?:MONGODB_URI|mongodb_uri)\s*=\s*(.+)$/i);
+  if (prefixMatch) {
+    cleaned = prefixMatch[1].trim();
+  }
+
   // Remove wrapping quotes if present
   if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
     cleaned = cleaned.slice(1, -1).trim();
@@ -36,11 +43,20 @@ function maskURI(uri: string): string {
 }
 
 const rawURI = process.env.MONGODB_URI;
-const MONGODB_URI = rawURI ? sanitizeURI(rawURI) : undefined;
+export let MONGODB_URI: string | undefined = undefined;
+
+if (rawURI && rawURI.trim()) {
+  const sanitized = sanitizeURI(rawURI);
+  if (sanitized.startsWith('mongodb://') || sanitized.startsWith('mongodb+srv://')) {
+    MONGODB_URI = sanitized;
+  } else {
+    console.warn(`⚠️ MONGODB_URI does not start with a valid MongoDB scheme ("mongodb://" or "mongodb+srv://"). Actual value starts with: "${sanitized.substring(0, 20)}". Database operations will fall back to local JSON file storage.`);
+  }
+}
 
 export async function connectDB() {
   if (!MONGODB_URI) {
-    console.warn('⚠️ MONGODB_URI environment variable is missing. Database operations will fail.');
+    console.warn('⚠️ MONGODB_URI is not set or is invalid. Falling back to local JSON file storage.');
     return;
   }
   try {

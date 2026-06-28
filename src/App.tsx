@@ -1262,67 +1262,6 @@ export default function App() {
                       </div>
                     )}
                   </div>
-
-                  {/* Interactive pomodoro sprint */}
-                  <div className="bg-slate-900/80 text-white rounded-2xl p-6 shadow-xl border border-slate-800">
-                    <div className="flex justify-between items-center mb-3">
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Focus Session Helper</p>
-                      <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-                    </div>
-
-                    {timerTask ? (
-                      <div className="space-y-4">
-                        <p className="text-xs font-semibold text-slate-300">Focus Target: <span className="text-white font-black">{timerTask.title}</span></p>
-                        <div className="text-3.5xl font-mono font-black tracking-widest text-center py-2 text-indigo-400">
-                          {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:
-                          {(timerSeconds % 60).toString().padStart(2, '0')}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setTimerActive(!timerActive)}
-                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
-                          >
-                            {timerActive ? 'Pause' : 'Start'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setTimerActive(false);
-                              setTimerSeconds(25 * 60);
-                            }}
-                            className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-400 transition-all cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-                          Need momentum? Pick an active task below to start a focused 25-minute sprint block.
-                        </p>
-                        {tasks.filter((t) => !t.completed).length > 0 ? (
-                          <div className="space-y-2">
-                            {tasks.filter((t) => !t.completed).slice(0, 2).map((task) => (
-                              <button
-                                key={`timer-opt-${task.id}`}
-                                onClick={() => {
-                                  setTimerTask(task);
-                                  setTimerSeconds(25 * 60);
-                                  setTimerActive(true);
-                                }}
-                                className="w-full text-left p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs text-slate-200 font-bold flex justify-between items-center transition-all cursor-pointer"
-                              >
-                                <span className="truncate max-w-[150px]">{task.title}</span>
-                                <ChevronRight className="w-3.5 h-3.5 text-indigo-400" />
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs italic text-slate-500">No active tasks available.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             )}

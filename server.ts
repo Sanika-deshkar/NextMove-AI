@@ -218,9 +218,14 @@ function validateTaskUpdateInput(data: any): { error?: string; value?: any } {
 }
 
 async function startServer() {
-  // Connect to MongoDB (strictly required now)
-  await connectDB();
-  console.log('🚀 MongoDB is fully active and being used for persistent storage.');
+  // Connect to MongoDB (strictly required now, but handle failure gracefully to prevent container crash)
+  try {
+    await connectDB();
+    console.log('🚀 MongoDB is fully active and being used for persistent storage.');
+  } catch (error: any) {
+    console.error('⚠️ Could not connect to MongoDB on startup:', error.message);
+    console.log('⚠️ Server is starting anyway so Cloud Run can launch, but database queries will fail until connected.');
+  }
 
   const app = express();
   app.use(express.json());
@@ -929,7 +934,7 @@ async function startServer() {
     });
   }
 
-  const port = 3000;
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${port}`);
   });

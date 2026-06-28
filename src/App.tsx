@@ -267,6 +267,17 @@ export default function App() {
     showToast('Logged out successfully.', 'success');
   };
 
+  const handleAuthError = (res: Response) => {
+    if (res.status === 401) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      setCurrentUser(null);
+      showToast('Your session has expired or is invalid. Please log in again.', 'error');
+      return true;
+    }
+    return false;
+  };
+
   // Fetch tasks from API
   const fetchTasks = async () => {
     setIsLoadingTasks(true);
@@ -274,6 +285,7 @@ export default function App() {
       const res = await fetch('/api/tasks', {
         headers: getHeaders()
       });
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('Failed to load tasks');
       const data = await res.json();
       setTasks(data);
@@ -307,6 +319,7 @@ export default function App() {
         }),
       });
 
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('Failed to analyze and save task');
       const newTask = await res.json();
       setTasks((prev) => [newTask, ...prev]);
@@ -331,6 +344,7 @@ export default function App() {
         method: 'PATCH',
         headers: getHeaders(),
       });
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('Failed to update subtask status');
       const updatedTask = await res.json();
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
@@ -358,6 +372,7 @@ export default function App() {
         }),
       });
 
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('Failed to update task');
       const updated = await res.json();
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
@@ -379,6 +394,7 @@ export default function App() {
         method: 'DELETE',
         headers: getHeaders(),
       });
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('Failed to delete task');
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       showToast('Task deleted successfully.', 'success');
@@ -396,6 +412,7 @@ export default function App() {
         method: 'POST',
         headers: getHeaders(),
       });
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('Failed to generate rescue plan');
       const updatedPlan = await res.json();
       // Update local task with the returned rescuePlan
@@ -418,6 +435,7 @@ export default function App() {
         method: 'POST',
         headers: getHeaders(),
       });
+      if (handleAuthError(res)) return;
       if (!res.ok) throw new Error('AI Engine failed to respond');
       const data = await res.json();
       setAiAnalysis(data);

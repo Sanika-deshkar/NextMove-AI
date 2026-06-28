@@ -50,14 +50,13 @@ if (rawURI && rawURI.trim()) {
   if (sanitized.startsWith('mongodb://') || sanitized.startsWith('mongodb+srv://')) {
     MONGODB_URI = sanitized;
   } else {
-    console.warn(`⚠️ MONGODB_URI does not start with a valid MongoDB scheme ("mongodb://" or "mongodb+srv://"). Actual value starts with: "${sanitized.substring(0, 20)}". Database operations will fall back to local JSON file storage.`);
+    console.error(`❌ MONGODB_URI does not start with a valid MongoDB scheme ("mongodb://" or "mongodb+srv://").`);
   }
 }
 
 export async function connectDB() {
   if (!MONGODB_URI) {
-    console.warn('⚠️ MONGODB_URI is not set or is invalid. Falling back to local JSON file storage.');
-    return;
+    throw new Error('MONGODB_URI is required for persistent storage. Please set it in your environment variables/Settings.');
   }
   try {
     console.log(`Connecting to MongoDB at: ${maskURI(MONGODB_URI)}`);
@@ -69,6 +68,7 @@ export async function connectDB() {
     console.log('✅ Connected to MongoDB successfully.');
   } catch (error) {
     console.error('❌ Failed to connect to MongoDB:', error);
+    throw error;
   }
 }
 

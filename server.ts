@@ -14,7 +14,14 @@ import { connectDB, User, Task, MONGODB_URI } from './db.ts';
 
 const resetCodes = new Map<string, { code: string; expires: number }>();
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const getDirname = () => {
+  if (typeof __dirname !== 'undefined') {
+    return __dirname;
+  }
+  const getMetaUrl = new Function('return import.meta.url');
+  return path.dirname(fileURLToPath(getMetaUrl()));
+};
+const currentDirname = getDirname();
 
 // Password hashing helpers using bcryptjs
 async function hashPassword(password: string): Promise<string> {
@@ -928,9 +935,9 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, 'dist')));
+    app.use(express.static(path.join(currentDirname, 'dist')));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(currentDirname, 'dist', 'index.html'));
     });
   }
 

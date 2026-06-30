@@ -1,6 +1,7 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -928,16 +929,28 @@ async function startServer() {
   });
 
   // Serve Vite in dev mode, or static files in production
-  if (process.env.NODE_ENV !== 'production') {
+  const getDistPath = () => {
+    if (currentDirname.endsWith('dist') || currentDirname.endsWith('dist/')) {
+      return currentDirname;
+    }
+    return path.join(currentDirname, 'dist');
+  };
+  const distPath = getDistPath();
+
+  const isProd = process.env.NODE_ENV === 'production' || fs.existsSync(path.join(distPath, 'index.html'));
+
+  if (!isProd) {
+    console.log('⚡ Starting Vite in development middleware mode...');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(currentDirname, 'dist')));
+    console.log('🚀 Serving static files in production mode from:', distPath);
+    app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(currentDirname, 'dist', 'index.html'));
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 

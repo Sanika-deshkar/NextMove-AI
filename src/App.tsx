@@ -32,7 +32,9 @@ import {
   ShieldCheck,
   KeyRound,
   Send,
-  ShieldAlert
+  ShieldAlert,
+  Menu,
+  X
 } from 'lucide-react';
 
 // Task and Subtask Interfaces
@@ -104,6 +106,12 @@ export default function App() {
 
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState<'plan' | 'tasks' | 'metrics' | 'insights'>('plan');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const selectTab = (tab: 'plan' | 'tasks' | 'metrics' | 'insights') => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
+  };
   const [tasks, setTasks] = useState<Task[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
@@ -523,7 +531,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="w-full max-w-md p-8 bg-slate-900/60 backdrop-blur-2xl border border-slate-800/80 rounded-3xl shadow-2xl relative z-10">
+        <div className="w-[calc(100%-2rem)] max-w-md mx-4 p-6 sm:p-8 bg-slate-900/60 backdrop-blur-2xl border border-slate-800/80 rounded-3xl shadow-2xl relative z-10">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8 text-center">
             <div className="w-12 h-12 bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-indigo-500/20 mb-3">
@@ -840,7 +848,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex overflow-hidden font-sans text-slate-100 border-8 border-slate-900 relative">
+    <div className="min-h-screen bg-slate-950 flex flex-col lg:flex-row overflow-hidden font-sans text-slate-100 border-0 sm:border-8 border-slate-900 relative">
       {/* Ambient background glows */}
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -864,18 +872,69 @@ export default function App() {
         </div>
       )}
 
-      {/* Sidebar Section */}
-      <aside className="w-64 bg-slate-900/40 backdrop-blur-xl border-r border-slate-800/60 flex flex-col shrink-0 relative z-10">
-        <div className="p-8 flex-1 flex flex-col">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-9 h-9 bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-600 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-indigo-500/20">
+      {/* Mobile Top Navigation Bar */}
+      <div className="lg:hidden h-16 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl flex items-center justify-between px-4 shrink-0 relative z-20">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 -ml-1 text-slate-400 hover:text-white rounded-xl hover:bg-slate-900 transition-all cursor-pointer"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-gradient-to-tr from-indigo-500 to-violet-600 rounded-lg flex items-center justify-center text-white font-extrabold text-sm shadow">
               N
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent leading-none">NextMove</h1>
-              <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest block mt-0.5">AI Task Companion</span>
+            <span className="font-black text-sm tracking-tight text-white">NextMove</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] px-2 py-0.5 bg-indigo-950 text-indigo-300 rounded font-black border border-indigo-900/30 capitalize">
+            {activeTab}
+          </span>
+          {currentUser && (
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-xs text-white uppercase shadow">
+              {currentUser.name.charAt(0)}
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Sidebar Overlay/Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
+      {/* Sidebar Section */}
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-slate-900/95 lg:bg-slate-900/40 backdrop-blur-2xl lg:backdrop-blur-xl border-r border-slate-800/60 flex flex-col shrink-0 z-40 transition-transform duration-300 transform lg:translate-x-0 lg:static lg:h-auto ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
+        <div className="p-8 flex-1 flex flex-col">
+          {/* Brand Logo & Close Button */}
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-tr from-indigo-500 via-indigo-600 to-violet-600 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-indigo-500/20">
+                N
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent leading-none">NextMove</h1>
+                <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest block mt-0.5">AI Task Companion</span>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-all cursor-pointer"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation Links */}
@@ -885,7 +944,7 @@ export default function App() {
               <ul className="space-y-1.5">
                 <li>
                   <button
-                    onClick={() => setActiveTab('plan')}
+                    onClick={() => selectTab('plan')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left border ${
                       activeTab === 'plan'
                         ? 'text-indigo-400 font-bold bg-indigo-950/40 border-indigo-500/30 shadow-inner'
@@ -905,7 +964,7 @@ export default function App() {
                 </li>
                 <li>
                   <button
-                    onClick={() => setActiveTab('tasks')}
+                    onClick={() => selectTab('tasks')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left border ${
                       activeTab === 'tasks'
                         ? 'text-indigo-400 font-bold bg-indigo-950/40 border-indigo-500/30 shadow-inner'
@@ -926,7 +985,7 @@ export default function App() {
               <ul className="space-y-1.5">
                 <li>
                   <button
-                    onClick={() => setActiveTab('metrics')}
+                    onClick={() => selectTab('metrics')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left border ${
                       activeTab === 'metrics'
                         ? 'text-indigo-400 font-bold bg-indigo-950/40 border-indigo-500/30 shadow-inner'
@@ -941,7 +1000,7 @@ export default function App() {
                 </li>
                 <li>
                   <button
-                    onClick={() => setActiveTab('insights')}
+                    onClick={() => selectTab('insights')}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left border ${
                       activeTab === 'insights'
                         ? 'text-indigo-400 font-bold bg-indigo-950/40 border-indigo-500/30 shadow-inner'
@@ -1023,10 +1082,10 @@ export default function App() {
 
       {/* Main Content Pane */}
       <main className="flex-1 flex flex-col min-h-0 bg-slate-950/40 backdrop-blur-3xl overflow-y-auto relative z-10">
-        <div className="p-8 max-w-6xl w-full mx-auto flex flex-col space-y-8 flex-1">
+        <div className="p-4 sm:p-8 max-w-6xl w-full mx-auto flex flex-col space-y-6 sm:space-y-8 flex-1">
           
           {/* Header Area */}
-          <header className="flex justify-between items-start border-b border-slate-800/60 pb-6 shrink-0">
+          <header className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 border-b border-slate-800/60 pb-6 shrink-0">
             <div>
               <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-1">
                 <Clock className="w-3.5 h-3.5 animate-pulse" />
@@ -1046,7 +1105,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {/* Trigger analysis button */}
               {tasks.length > 0 && (
                 <button
@@ -1061,7 +1120,7 @@ export default function App() {
 
               <button
                 onClick={() => {
-                  setActiveTab('tasks');
+                  selectTab('tasks');
                   setIsCreatingTask(true);
                   // Scroll to form if needed
                   setTimeout(() => {
@@ -1077,7 +1136,7 @@ export default function App() {
           </header>
 
           {/* Metric Dashboard Bar */}
-          <section className="grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 shrink-0">
             <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
               <div>
                 <p className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-widest mb-1">Completion Rate</p>
@@ -1163,7 +1222,7 @@ export default function App() {
                         Add tasks in the "All Tasks" tab to let Gemini AI draft your smart action plan.
                       </p>
                       <button
-                        onClick={() => setActiveTab('tasks')}
+                        onClick={() => selectTab('tasks')}
                         className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 hover:shadow-indigo-500/20 transition-all cursor-pointer"
                       >
                         Go to Tasks
@@ -1918,7 +1977,7 @@ export default function App() {
                     
                     <button
                       onClick={() => {
-                        setActiveTab('tasks');
+                        selectTab('tasks');
                         setIsCreatingTask(true);
                       }}
                       className="inline-flex items-center gap-1.5 text-xs text-indigo-400 font-extrabold hover:underline cursor-pointer"
